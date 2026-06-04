@@ -144,18 +144,11 @@
         <button id="start-btn">AR Experience Starten</button>
     </div>
 
-</head>
-<body>
-
     <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;" 
              embedded 
              renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
              vr-mode-ui="enabled: false" 
              device-orientation-permission-ui="enabled: false">
-        
-        <a-assets>
-            <a-asset-item id="crystal-structure" src="./model.glb"></a-asset-item>
-        </a-assets>
         
         <a-camera position="0 0 0" look-controls="enabled: false" mindar-image-camera></a-camera>
 
@@ -163,13 +156,9 @@
             
             <a-entity gesture-handler>
                 
-                <a-gltf-model src="#crystal-structure" 
-                              position="0 0 0" 
-                              scale="0.2 0.2 0.2" 
-                              rotation="0 0 0">
-                </a-gltf-model>
+                <a-box position="0 0 0" scale="1.0 1.0 1.0" material="color: red; opacity: 0.9;"></a-box>
                 
-            </a-entity>
+                </a-entity>
         </a-entity>
     </a-scene>
 
