@@ -2,55 +2,117 @@
 <html lang="de">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Touch Diagnostics Fixed</title>
+    <title>Nanochemistry AR Portal</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
+        /* Modernes Font-Setup & Reset */
         html, body { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
-        #touch-hud {
-            position: fixed; top: 10px; left: 10px;
-            width: 260px; background: rgba(0, 0, 0, 0.85);
-            color: #00ff00; font-family: monospace; font-size: 12px;
-            padding: 12px; border-radius: 8px; border: 1px solid #00ff00;
-            z-index: 99999; pointer-events: none;
+        /* Haupt-Container für das moderne UI Layer */
+        #ar-ui-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 9999; pointer-events: none; /* Erlaubt Touch-Gesten durch das UI auf das 3D-Modell */
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 16px; box-sizing: border-box;
         }
-        
+
+        /* Top Bar: Status Anzeige */
+        .ui-top-bar {
+            display: flex; justify-content: flex-start; width: 100%;
+        }
+
+        .status-badge {
+            background: rgba(15, 15, 20, 0.75);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff; padding: 8px 14px; border-radius: 20px;
+            font-size: 13px; font-weight: 500; letter-spacing: 0.5px;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        /* Dynamischer Status-Punkt */
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background-color: #ff4b4b; /* Default: Rot */
+            box-shadow: 0 0 8px #ff4b4b;
+            transition: all 0.3s ease;
+        }
+
+        /* Status-Wechsel Klassen */
+        .status-badge.tracked { border-color: rgba(0, 255, 150, 0.3); }
+        .status-badge.tracked .status-dot { background-color: #00ff96; box-shadow: 0 0 10px #00ff96; }
+
+        /* Bottom Bar: Molekül-Informationsfenster */
+        .ui-bottom-bar {
+            display: flex; justify-content: center; width: 100%; margin-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        .molecule-card {
+            background: rgba(15, 15, 20, 0.75);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px; padding: 16px; width: 100%; max-width: 360px;
+            color: #fff; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            transform: translateY(20px); opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+        }
+
+        /* Karte einblenden, sobald Marker aktiv */
+        .molecule-card.visible {
+            transform: translateY(0); opacity: 1;
+        }
+
+        .molecule-title {
+            font-size: 18px; font-weight: 600; margin: 0 0 4px 0; color: #fff;
+        }
+
+        .molecule-subtitle {
+            font-size: 12px; color: #8a8a93; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+        }
+
+        /* Sauberes Daten-Raster */
+        .info-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 12px;
+        }
+
+        .info-item { display: flex; flex-direction: column; }
+        .info-label { font-size: 11px; color: #eaebd8; text-transform: uppercase; margin-bottom: 2px; opacity: 0.6; }
+        .info-value { font-size: 14px; font-weight: 500; color: #f2f2f7; }
+
+        /* Lade-Screen Styles */
         #loading {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #111; color: #fff; z-index: 10;
+            background: #09090b; color: #fff; z-index: 10000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            font-family: sans-serif; text-align: center;
         }
         
         #start-btn {
-            padding: 12px 24px; font-size: 16px; background: #3b82f6; color: white; 
-            border: none; border-radius: 6px; cursor: pointer; margin-top: 15px;
-            display: none;
+            padding: 12px 28px; font-size: 15px; font-weight: 600; background: #fff; color: #000; 
+            border: none; border-radius: 24px; cursor: pointer; margin-top: 20px;
+            box-shadow: 0 4px 20px rgba(255,255,255,0.2); display: none;
         }
 
-        video {
-            width: 100vw !important; height: 100vh !important;
-            object-fit: cover !important; position: absolute; top: 0; left: 0;
-            z-index: 1 !important;
-        }
-
-        .a-canvas {
-            width: 100vw !important; height: 100vh !important;
-            position: absolute; top: 0; left: 0; z-index: 2 !important;
-        }
+        video { width: 100vw !important; height: 100vh !important; object-fit: cover !important; position: absolute; top: 0; left: 0; z-index: 1 !important; }
+        .a-canvas { width: 100vw !important; height: 100vh !important; position: absolute; top: 0; left: 0; z-index: 2 !important; }
     </style>
 
     <script>
+        // DIE UNVERÄNDERTE GESTEN-LOGIK (NUR HUD-LOGS ENTFERNT)
         AFRAME.registerComponent('gesture-handler', {
             init: function () {
-                this.hudLog = document.getElementById('hud-log');
-                this.hudTarget = document.getElementById('hud-target');
-                this.hudTouches = document.getElementById('hud-touches');
+                this.statusBadge = document.getElementById('status-badge');
+                this.statusText = document.getElementById('status-text');
+                this.moleculeCard = document.getElementById('molecule-card');
                 
                 this.isVisible = false;
                 this.scaleFactor = 1;
@@ -59,16 +121,21 @@
                 this.handleTouchStart = this.handleTouchStart.bind(this);
                 this.handleTouchMove = this.handleTouchMove.bind(this);
 
-                // Sucht das übergeordnete MindAR-Target, um den Sichtbarkeitsstatus abzufragen
                 const targetEntity = this.el.closest('[mindar-image-target]');
                 if (targetEntity) {
                     targetEntity.addEventListener('targetFound', () => { 
                         this.isVisible = true; 
-                        if(this.hudTarget) this.hudTarget.innerText = "JA (Aktiv)";
+                        // UI auf "Aktiv" schalten
+                        if(this.statusBadge) this.statusBadge.classList.add('tracked');
+                        if(this.statusText) this.statusText.innerText = "Target erkannt";
+                        if(this.moleculeCard) this.moleculeCard.classList.add('visible');
                     });
                     targetEntity.addEventListener('targetLost', () => { 
                         this.isVisible = false; 
-                        if(this.hudTarget) this.hudTarget.innerText = "NEIN (Inaktiv)";
+                        // UI auf "Suche" schalten
+                        if(this.statusBadge) this.statusBadge.classList.remove('tracked');
+                        if(this.statusText) this.statusText.innerText = "Suche Marker...";
+                        if(this.moleculeCard) this.moleculeCard.classList.remove('visible');
                     });
                 }
 
@@ -77,9 +144,7 @@
             },
             
             handleTouchStart: function (event) {
-                if (this.hudTouches) this.hudTouches.innerText = event.touches.length;
                 if (!this.isVisible) return;
-
                 if (event.touches.length === 1) {
                     this.previousTouchX = event.touches[0].clientX;
                     this.previousTouchY = event.touches[0].clientY;
@@ -94,7 +159,6 @@
                 event.preventDefault(); 
 
                 if (event.touches.length === 1) {
-                    // Dreht nun isoliert den internen Container
                     const deltaX = event.touches[0].clientX - this.previousTouchX;
                     const deltaY = event.touches[0].clientY - this.previousTouchY;
                     
@@ -103,9 +167,7 @@
                     
                     this.previousTouchX = event.touches[0].clientX;
                     this.previousTouchY = event.touches[0].clientY;
-                    if (this.hudLog) this.hudLog.innerText = `Rotiere... X: ${this.el.object3D.rotation.x.toFixed(2)}, Y: ${this.el.object3D.rotation.y.toFixed(2)}`;
                 } else if (event.touches.length === 2) {
-                    // Skaliert isoliert den internen Container
                     const currentSpread = this.getDistance(event.touches[0], event.touches[1]);
                     if (this.initialSpread > 0) {
                         const ratio = currentSpread / this.initialSpread;
@@ -116,11 +178,9 @@
                             this.initialScale.y * this.scaleFactor,
                             this.initialScale.z * this.scaleFactor
                         );
-                        if (this.hudLog) this.hudLog.innerText = `Skaliere... Multiplikator: ${this.scaleFactor.toFixed(2)}`;
                     }
                 }
             },
-            
             getDistance: function (touch1, touch2) {
                 return Math.sqrt(Math.pow(touch1.clientX - touch2.clientX, 2) + Math.pow(touch1.clientY - touch2.clientY, 2));
             }
@@ -129,25 +189,50 @@
 </head>
 <body>
 
-    <div id="touch-hud">
-        <strong>[TOUCH DIAGNOSTICS]</strong>
-        <hr style="border-color: #00ff00; margin: 5px 0;">
-        <div>Target Visible: <span id="hud-target" style="color: #ffaa00;">NEIN (Inaktiv)</span></div>
-        <div>Active Touches: <span id="hud-touches">0</span></div>
-        <div style="margin-top: 5px; color: #fff;">Last Action:</div>
-        <div id="hud-log" style="color: #00ffff; font-style: italic;">Warte auf Eingabe...</div>
+    <div id="ar-ui-layer">
+        
+        <div class="ui-top-bar">
+            <div id="status-badge" class="status-badge">
+                <div class="status-dot"></div>
+                <span id="status-text">Suche Marker...</span>
+            </div>
+        </div>
+
+        <div class="ui-bottom-bar">
+            <div id="molecule-card" class="molecule-card">
+                <div class="molecule-title">Übergangsmetallkomplex</div>
+                <div class="molecule-subtitle">Koordinationsverbindung</div>
+                
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Formel</span>
+                        <span class="info-value">[M(L)<sub>n</sub>]X<sub>m</sub></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Mol. Masse</span>
+                        <span class="info-value">452.3 g/mol</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Geometrie</span>
+                        <span class="info-value">Oktaedrisch</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Symmetrie</span>
+                        <span class="info-value">O<sub>h</sub> (pseudo)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <div id="loading">
-        <h2>Nanochemistry AR Portal</h2>
-        <p id="status-text">Initialisiere AR-Umgebung...</p>
-        <button id="start-btn">AR Experience Starten</button>
+        <h2 style="font-weight: 400; letter-spacing: 1px;">Nanochemistry AR Portal</h2>
+        <p id="init-text" style="color: #8a8a93; font-size: 14px;">Initialisiere Kamera-Tracker...</p>
+        <button id="start-btn">AR Ansicht Starten</button>
     </div>
 
-</head>
-<body>
-
-<a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no; filterMinCF: 0.0005; filterBeta: 0.001;" 
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no; filterMinCF: 0.0005; filterBeta: 0.001;" 
              embedded 
              renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
              vr-mode-ui="enabled: false" 
@@ -160,18 +245,11 @@
         <a-camera position="0 0 0" look-controls="enabled: false" mindar-image-camera></a-camera>
 
         <a-entity light="type: ambient; intensity: 0.3;"></a-entity>
-        
-        <a-entity light="type: directional; intensity: 1.2; castShadow: false;" position="2 4 3"></a-entity>
+        <a-entity light="type: directional; intensity: 1.2;" position="2 4 3"></a-entity>
 
         <a-entity mindar-image-target="targetIndex: 0">
             <a-entity gesture-handler>
-                
-                <a-gltf-model src="#crystal-structure" 
-                              position="0 0 0" 
-                              scale="0.4 0.4 0.4" 
-                              rotation="0 0 0">
-                </a-gltf-model>
-                
+                <a-gltf-model src="#crystal-structure" position="0 0 0" scale="0.4 0.4 0.4" rotation="0 0 0"></a-gltf-model>
             </a-entity>
         </a-entity>
     </a-scene>
@@ -179,11 +257,11 @@
     <script>
         const sceneEl = document.querySelector('a-scene');
         const loadingEl = document.getElementById('loading');
-        const statusText = document.getElementById('status-text');
+        const initText = document.getElementById('init-text');
         const startBtn = document.getElementById('start-btn');
 
         sceneEl.addEventListener("arReady", () => {
-            statusText.innerText = "System bereit!";
+            initText.innerText = "System einsatzbereit.";
             startBtn.style.display = "block";
         });
 
