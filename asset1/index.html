@@ -2,64 +2,83 @@
 <html lang="de">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Asset Portal</title>
+    <title>AR Diagnostic Portal</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
         html, body { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-            overflow: hidden; 
-            background-color: #000;
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background-color: #000;
         }
         
+        /* Das Diagnose-Overlay oben links */
+        #diagnostic-overlay {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: calc(100% - 40px);
+            max-width: 320px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #00ff00;
+            z-index: 99999;
+            pointer-events: none; /* Klicks gehen durch das Overlay hindurch */
+        }
+
         #loading {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #111; color: #fff; z-index: 9999;
+            background: #111; color: #fff; z-index: 9998;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            font-family: sans-serif; text-align: center;
+            font-family: sans-serif;
         }
         
         #start-btn {
-            padding: 12px 24px; font-size: 16px; background: #3b82f6; color: white; 
+            padding: 12px 24px; font-size: 16px; background: #22c55e; color: white; 
             border: none; border-radius: 6px; cursor: pointer; margin-top: 15px;
             display: none;
         }
 
-        /* Zwingt das von MindAR injizierte Video-Element, sich ohne 
-          Verzerrung an den Smartphone-Bildschirm anzupassen (Portrait & Landscape)
-        */
         video {
             width: 100vw !important;
             height: 100vh !important;
             object-fit: cover !important;
-            position: absolute;
-            top: 0;
-            left: 0;
+            position: absolute; top: 0; left: 0;
         }
     </style>
 </head>
 <body>
 
+    <div id="diagnostic-overlay">
+        <div><strong>[AR DIAGNOSTICS]</strong></div>
+        <hr style="border-color: #00ff00;">
+        <div>MindAR Status: <span id="diag-mindar">Warte auf Start...</span></div>
+        <div>Target 0 Tracking: <span id="diag-target">Nein</span></div>
+        <div>Screen Orientation: <span id="diag-orient">unknown</span></div>
+        <div>Canvas Size: <span id="diag-canvas">0x0</span></div>
+        <div>Target Matrix: <span id="diag-matrix">N/A</span></div>
+    </div>
+
     <div id="loading">
-        <h2>Nanochemistry AR Portal</h2>
-        <p id="status-text">Initialisiere AR-Umgebung...</p>
-        <button id="start-btn">AR Experience Starten</button>
+        <h2>Nanochemistry AR Diagnostic</h2>
+        <p id="status-text">Prüfe WebAssembly & Kamera...</p>
+        <button id="start-btn">Start Test</button>
     </div>
 
     <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;" 
              embedded 
-             renderer="colorManagement: true; physicallyCorrectLights: true;"
+             renderer="colorManagement: true;"
              vr-mode-ui="enabled: false" 
              device-orientation-permission-ui="enabled: false">
         
-        <a-camera position="0 0 0" look-controls="enabled: false" raycaster="objects: .cantap"></a-camera>
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity mindar-image-target="targetIndex: 0">
-            <a-box position="0 0 0" scale="0.3 0.3 0.3" material="color: red; opacity: 0.9;"></a-box>
+        <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
+            <a-box position="0 0 0" scale="0.3 0.3 0.3" material="color: #ff00ff; wireframe: true; wireframeLinewidth: 3;"></a-box>
         </a-entity>
     </a-scene>
 
@@ -68,19 +87,64 @@
         const loadingEl = document.getElementById('loading');
         const statusText = document.getElementById('status-text');
         const startBtn = document.getElementById('start-btn');
+        const arTargetEl = document.getElementById('ar-target');
 
+        // UI-Elemente für Diagnostics
+        const diagMindar = document.getElementById('diag-mindar');
+        const diagTarget = document.getElementById('diag-target');
+        const diagOrient = document.getElementById('diag-orient');
+        const diagCanvas = document.getElementById('diag-canvas');
+        const diagMatrix = document.getElementById('diag-matrix');
+
+        // 1. MindAR Bereitschaft abfangen
         sceneEl.addEventListener("arReady", () => {
-            statusText.innerText = "Kamera und Tracker bereit!";
+            statusText.innerText = "System bereit!";
+            diagMindar.innerText = "READY / RUNNING";
+            diagMindar.style.color = "#00ff00";
             startBtn.style.display = "block";
         });
 
-        startBtn.addEventListener('click', () => {
-            loadingEl.style.style.display = 'none';
+        sceneEl.addEventListener("arError", () => {
+            diagMindar.innerText = "ERROR (Kamera blockiert)";
+            diagMindar.style.color = "#ff0000";
+            statusText.innerText = "Kamera-Fehler!";
         });
 
-        sceneEl.addEventListener("arError", () => {
-            statusText.innerText = "Kamera-Zugriff blockiert!";
+        startBtn.addEventListener('click', () => {
+            loadingEl.style.display = 'none';
         });
+
+        // 2. Tracking-Events tracken (Wird das Bild erkannt?)
+        arTargetEl.addEventListener("targetFound", () => {
+            diagTarget.innerText = "GEFUNDEN (Visible)";
+            diagTarget.style.color = "#00ff00";
+        });
+
+        arTargetEl.addEventListener("targetLost", () => {
+            diagTarget.innerText = "Verloren (Nicht sichtbar)";
+            diagTarget.style.color = "#ffaa00";
+        });
+
+        // 3. Diagnose-Schleife (Aktualisiert Daten jede Sekunde)
+        setInterval(() => {
+            // Orientierung auslesen
+            diagOrient.innerText = `${window.screen.orientation ? window.screen.orientation.type : window.navigator.orientation} (${window.innerWidth}x${window.innerHeight})`;
+            
+            // Canvas-Größe des Renderers ermitteln
+            const canvas = document.querySelector('.a-canvas');
+            if (canvas) {
+                diagCanvas.innerText = `${canvas.clientWidth}x${canvas.clientHeight}`;
+            }
+
+            // Versuchen, die aktuelle Transformationsmatrix der AR-Entität auszulesen
+            if (arTargetEl && arTargetEl.object3D) {
+                const matrix = arTargetEl.object3D.matrix;
+                if (matrix && matrix.elements) {
+                    // Zeige die ersten drei Positions-Längenwerte an
+                    diagMatrix.innerText = `X:${matrix.elements[12].toFixed(2)} Y:${matrix.elements[13].toFixed(2)} Z:${matrix.elements[14].toFixed(2)}`;
+                }
+            }
+        }, 500);
     </script>
 </body>
 </html>
