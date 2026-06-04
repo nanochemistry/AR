@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nanochemistry AR Portal</title>
+    <title>AR Touch Diagnostics</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
@@ -10,6 +10,15 @@
         html, body { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; background-color: #000;
+        }
+
+        /* Das Touch-HUD oben links */
+        #touch-hud {
+            position: fixed; top: 10px; left: 10px;
+            width: 260px; background: rgba(0, 0, 0, 0.85);
+            color: #00ff00; font-family: monospace; font-size: 12px;
+            padding: 12px; border-radius: 8px; border: 1px solid #00ff00;
+            z-index: 99999; pointer-events: none;
         }
         
         #loading {
@@ -26,106 +35,111 @@
         }
 
         video {
-            width: 100vw !important;
-            height: 100vh !important;
-            object-fit: cover !important;
-            position: absolute; top: 0; left: 0;
+            width: 100vw !important; height: 100vh !important;
+            object-fit: cover !important; position: absolute; top: 0; left: 0;
             z-index: 1 !important;
         }
 
         .a-canvas {
-            width: 100vw !important;
-            height: 100vh !important;
-            position: absolute; top: 0; left: 0;
-            z-index: 2 !important;
-        }
-
-        @media (orientation: landscape) {
-            video {
-                width: auto !important;
-                height: 100vh !important;
-                left: 50% !important;
-                transform: translateX(-50%) !important;
-                object-fit: contain !important;
-            }
+            width: 100vw !important; height: 100vh !important;
+            position: absolute; top: 0; left: 0; z-index: 2 !important;
         }
     </style>
 
     <script>
-        // EIGENE RECHNER-KOMPONENTE FÜR TOUCH-GESTEN
         AFRAME.registerComponent('gesture-handler', {
-            schema: {
-                rotationFactor: {default: 5},
-                minScale: {default: 0.1},
-                maxScale: {default: 5}
-            },
             init: function () {
-                this.handleTouchStart = this.handleTouchStart.bind(this);
-                this.handleTouchMove = this.handleTouchMove.bind(this);
+                this.hudLog = document.getElementById('hud-log');
+                this.hudTarget = document.getElementById('hud-target');
+                this.hudTouches = document.getElementById('hud-touches');
                 
                 this.isVisible = false;
-                this.initialScale = this.el.object3D.scale.clone();
                 this.scaleFactor = 1;
-                
-                // Gesten nur erlauben, wenn das Bild aktiv getrackt wird
-                this.el.addEventListener('targetFound', () => { this.isVisible = true; });
-                this.el.addEventListener('targetLost', () => { this.isVisible = false; });
-                
-                window.addEventListener('touchstart', this.handleTouchStart);
-                window.addEventListener('touchmove', this.handleTouchMove);
+                this.initialScale = this.el.object3D.scale.clone();
+
+                // Bindings
+                this.handleTouchStart = this.handleTouchStart.bind(this);
+                this.handleTouchMove = this.handleTouchMove.bind(this);
+
+                // Tracking Events abfangen
+                this.el.addEventListener('targetFound', () => { 
+                    this.isVisible = true; 
+                    if(this.hudTarget) this.hudTarget.innerText = "JA (Aktiv)";
+                });
+                this.el.addEventListener('targetLost', () => { 
+                    this.isVisible = false; 
+                    if(this.hudTarget) this.hudTarget.innerText = "NEIN (Inaktiv)";
+                });
+
+                // Listeners auf das Window legen
+                window.addEventListener('touchstart', this.handleTouchStart, {passive: false});
+                window.addEventListener('touchmove', this.handleTouchMove, {passive: false});
             },
+            
             handleTouchStart: function (event) {
-                if (!this.isVisible) return;
-                
+                if (this.hudTouches) this.hudTouches.innerText = event.touches.length;
+                if (!this.isVisible) {
+                    if (this.hudLog) this.hudLog.innerText = "Touch ignoriert (Kein Target im Fokus)";
+                    return;
+                }
+
                 if (event.touches.length === 1) {
                     this.previousTouchX = event.touches[0].clientX;
                     this.previousTouchY = event.touches[0].clientY;
+                    if (this.hudLog) this.hudLog.innerText = "Start: 1 Finger (Rotation registriert)";
                 } else if (event.touches.length === 2) {
                     this.initialSpread = this.getDistance(event.touches[0], event.touches[1]);
                     this.baseScale = this.scaleFactor;
+                    if (this.hudLog) this.hudLog.innerText = "Start: 2 Finger (Pinch registriert)";
                 }
             },
+            
             handleTouchMove: function (event) {
                 if (!this.isVisible) return;
-                
+                event.preventDefault(); // Verhindert das Scrollen der Website beim Wischen
+
                 if (event.touches.length === 1) {
-                    // EIN FINGER: Rotation um X- und Y-Achse
                     const deltaX = event.touches[0].clientX - this.previousTouchX;
                     const deltaY = event.touches[0].clientY - this.previousTouchY;
                     
-                    this.el.object3D.rotation.y += deltaX * (this.data.rotationFactor / 1000);
-                    this.el.object3D.rotation.x += deltaY * (this.data.rotationFactor / 1000);
+                    this.el.object3D.rotation.y += deltaX * 0.005;
+                    this.el.object3D.rotation.x += deltaY * 0.005;
                     
                     this.previousTouchX = event.touches[0].clientX;
                     this.previousTouchY = event.touches[0].clientY;
+                    if (this.hudLog) this.hudLog.innerText = `Rotiere... dX: ${deltaX.toFixed(1)}, dY: ${deltaY.toFixed(1)}`;
                 } else if (event.touches.length === 2) {
-                    // ZWEI FINGER: Pinch-to-Zoom (Skalierung)
                     const currentSpread = this.getDistance(event.touches[0], event.touches[1]);
                     if (this.initialSpread > 0) {
                         const ratio = currentSpread / this.initialSpread;
-                        this.scaleFactor = Math.max(this.data.minScale, Math.min(this.data.maxScale, this.baseScale * ratio));
+                        this.scaleFactor = Math.max(0.1, Math.min(5, this.baseScale * ratio));
                         
                         this.el.object3D.scale.set(
                             this.initialScale.x * this.scaleFactor,
                             this.initialScale.y * this.scaleFactor,
                             this.initialScale.z * this.scaleFactor
                         );
+                        if (this.hudLog) this.hudLog.innerText = `Skaliere... Faktor: ${this.scaleFactor.toFixed(2)}`;
                     }
                 }
             },
+            
             getDistance: function (touch1, touch2) {
-                const dx = touch1.clientX - touch2.clientX;
-                const dy = touch1.clientY - touch2.clientY;
-                return Math.sqrt(dx * dx + dy * dy);
-            },
-            remove: function() {
-                window.removeEventListener('touchstart', this.handleTouchStart);
-                window.removeEventListener('touchmove', this.handleTouchMove);
+                return Math.sqrt(Math.pow(touch1.clientX - touch2.clientX, 2) + Math.pow(touch1.clientY - touch2.clientY, 2));
             }
         });
     </script>
 </head>
 <body>
+
+    <div id="touch-hud">
+        <strong>[TOUCH DIAGNOSTICS]</strong>
+        <hr style="border-color: #00ff00; margin: 5px 0;">
+        <div>Target Visible: <span id="hud-target" style="color: #ffaa00;">NEIN (Inaktiv)</span></div>
+        <div>Active Touches: <span id="hud-touches">0</span></div>
+        <div style="margin-top: 5px; color: #fff;">Last Action:</div>
+        <div id="hud-log" style="color: #00ffff; font-style: italic;">Warte auf Eingabe...</div>
+    </div>
 
     <div id="loading">
         <h2>Nanochemistry AR Portal</h2>
@@ -142,10 +156,8 @@
         <a-camera position="0 0 0" look-controls="enabled: false" mindar-image-camera></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0" gesture-handler>
-            
             <a-box position="0 0 0" scale="0.3 0.3 0.3" material="color: red; opacity: 0.9;"></a-box>
-            
-            </a-entity>
+        </a-entity>
     </a-scene>
 
     <script>
