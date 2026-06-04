@@ -20,8 +20,11 @@
 <body>
 
     <div id="loading">
-        <h2>Loading 3D Experience...</h2>
-        <p>Aim your camera at the QR code on the poster.</p>
+        <h2>Nanochemistry AR Portal</h2>
+        <p>Kamera-Berechtigung wird benötigt.</p>
+        <button id="start-btn" style="padding: 12px 24px; font-size: 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 15px;">
+            AR Experience Starten
+        </button>
     </div>
 
     <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;" 
@@ -38,10 +41,26 @@
         </a-entity>
     </a-scene>
 
-    <script>
-        document.querySelector('a-scene').addEventListener("arReady", () => {
-            document.getElementById('loading').classList.add('hidden');
+<script>
+    const sceneEl = document.querySelector('a-scene');
+    const loadingEl = document.getElementById('loading');
+    const startBtn = document.getElementById('start-btn');
+
+    // MindAR wird erst gestartet, wenn der Nutzer auf den Button klickt
+    startBtn.addEventListener('click', () => {
+        startBtn.innerText = "Initialisiere Kamera...";
+        
+        // Signalisiert A-Frame/MindAR, dass es losgehen kann
+        sceneEl.addEventListener("arReady", () => {
+            loadingEl.style.display = 'none';
         });
-    </script>
+
+        // Falls die Szene im Hintergrund schon bereit war
+        if (sceneEl.hasLoaded) {
+            // Ein kleiner Schubs für den Fall, dass die Kamera blockiert war
+            sceneEl.components['mindar-image'].system.start(); 
+        }
+    });
+</script>
 </body>
 </html>
