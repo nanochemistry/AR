@@ -1,23 +1,44 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR Asset Portal</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-        body { margin: 0; overflow: hidden; }
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden; 
+            background-color: #000;
+        }
+        
         #loading {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #111; color: #fff; z-index: 9999;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             font-family: sans-serif; text-align: center;
         }
+        
         #start-btn {
             padding: 12px 24px; font-size: 16px; background: #3b82f6; color: white; 
             border: none; border-radius: 6px; cursor: pointer; margin-top: 15px;
-            display: none; /* Wird erst sichtbar, wenn die Kamera bereit ist */
+            display: none;
+        }
+
+        /* Zwingt das von MindAR injizierte Video-Element, sich ohne 
+          Verzerrung an den Smartphone-Bildschirm anzupassen (Portrait & Landscape)
+        */
+        video {
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: cover !important;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
     </style>
 </head>
@@ -25,16 +46,20 @@
 
     <div id="loading">
         <h2>Nanochemistry AR Portal</h2>
-        <p id="status-text">Initialisiere AR-Umgebung und Kamera...</p>
+        <p id="status-text">Initialisiere AR-Umgebung...</p>
         <button id="start-btn">AR Experience Starten</button>
     </div>
-    <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: yes;" 
-             embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;" 
+             embedded 
+             renderer="colorManagement: true; physicallyCorrectLights: true;"
+             vr-mode-ui="enabled: false" 
+             device-orientation-permission-ui="enabled: false">
         
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <a-camera position="0 0 0" look-controls="enabled: false" raycaster="objects: .cantap"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
-            <a-box position="0 0 0.2" scale="1 1 1" material="color: red; opacity: 0.8;"></a-box>
+            <a-box position="0 0 0" scale="0.3 0.3 0.3" material="color: red; opacity: 0.9;"></a-box>
         </a-entity>
     </a-scene>
 
@@ -44,21 +69,17 @@
         const statusText = document.getElementById('status-text');
         const startBtn = document.getElementById('start-btn');
 
-        // Sobald MindAR die Kamera erfolgreich gestartet hat und bereit ist:
         sceneEl.addEventListener("arReady", () => {
-            statusText.innerText = "Kamera erfolgreich geladen!";
-            startBtn.style.display = "block"; // Zeige den Button an
+            statusText.innerText = "Kamera und Tracker bereit!";
+            startBtn.style.display = "block";
         });
 
-        // Wenn der Nutzer auf den Button klickt, blenden wir einfach das Overlay aus
         startBtn.addEventListener('click', () => {
-            loadingEl.style.display = 'none';
+            loadingEl.style.style.display = 'none';
         });
 
-        // Falls die Kamera blockiert wird (z.B. durch Firefox-Rechte)
         sceneEl.addEventListener("arError", () => {
             statusText.innerText = "Kamera-Zugriff blockiert!";
-            alert("Bitte erlaube der Website den Zugriff auf deine Kamera in den Browser-Einstellungen.");
         });
     </script>
 </body>
