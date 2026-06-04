@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Asset Portal</title>
@@ -12,19 +12,21 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #111; color: #fff; z-index: 9999;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            font-family: sans-serif;
+            font-family: sans-serif; text-align: center;
         }
-        .hidden { display: none; }
+        #start-btn {
+            padding: 12px 24px; font-size: 16px; background: #3b82f6; color: white; 
+            border: none; border-radius: 6px; cursor: pointer; margin-top: 15px;
+            display: none; /* Wird erst sichtbar, wenn die Kamera bereit ist */
+        }
     </style>
 </head>
 <body>
 
     <div id="loading">
         <h2>Nanochemistry AR Portal</h2>
-        <p>Kamera-Berechtigung wird benötigt.</p>
-        <button id="start-btn" style="padding: 12px 24px; font-size: 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 15px;">
-            AR Experience Starten
-        </button>
+        <p id="status-text">Initialisiere AR-Umgebung und Kamera...</p>
+        <button id="start-btn">AR Experience Starten</button>
     </div>
 
     <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;" 
@@ -41,42 +43,28 @@
         </a-entity>
     </a-scene>
 
-<script>
-    const sceneEl = document.querySelector('a-scene');
-    const loadingEl = document.getElementById('loading');
-    const startBtn = document.getElementById('start-btn');
+    <script>
+        const sceneEl = document.querySelector('a-scene');
+        const loadingEl = document.getElementById('loading');
+        const statusText = document.getElementById('status-text');
+        const startBtn = document.getElementById('start-btn');
 
-    startBtn.addEventListener('click', () => {
-        startBtn.innerText = "Initialisiere Kamera...";
-        startBtn.disabled = true; // Verhindert doppelte Klicks
-
-        // Funktion, die den AR-Start ausführt, sobald das System bereit ist
-        const startAR = () => {
-            const mindarSystem = sceneEl.components['mindar-image'] && sceneEl.components['mindar-image'].system;
-            if (mindarSystem) {
-                mindarSystem.start(); // Startet die Kamera explizit
-            }
-        };
-
-        // Wenn die Szene und alle Komponenten bereits geladen sind
-        if (sceneEl.hasLoaded) {
-            startAR();
-        } else {
-            // Falls A-Frame noch am Laden ist, warten wir auf das 'loaded' Event
-            sceneEl.addEventListener('loaded', startAR);
-        }
-
-        // Sobald MindAR signalisiert, dass das Tracking läuft, blenden wir den Screen aus
+        // Sobald MindAR die Kamera erfolgreich gestartet hat und bereit ist:
         sceneEl.addEventListener("arReady", () => {
+            statusText.innerText = "Kamera erfolgreich geladen!";
+            startBtn.style.display = "block"; // Zeige den Button an
+        });
+
+        // Wenn der Nutzer auf den Button klickt, blenden wir einfach das Overlay aus
+        startBtn.addEventListener('click', () => {
             loadingEl.style.display = 'none';
         });
 
-        // Fehler-Handling falls die Kamera blockiert ist
+        // Falls die Kamera blockiert wird (z.B. durch Firefox-Rechte)
         sceneEl.addEventListener("arError", () => {
-            startBtn.innerText = "Kamera-Fehler!";
-            alert("Kamera konnte nicht gestartet werden. Bitte HTTPS und Berechtigungen prüfen.");
+            statusText.innerText = "Kamera-Zugriff blockiert!";
+            alert("Bitte erlaube der Website den Zugriff auf deine Kamera in den Browser-Einstellungen.");
         });
-    });
-</script>
+    </script>
 </body>
 </html>
