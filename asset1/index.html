@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Touch Diagnostics</title>
+    <title>AR Touch Diagnostics Fixed</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
@@ -12,7 +12,6 @@
             overflow: hidden; background-color: #000;
         }
 
-        /* Das Touch-HUD oben links */
         #touch-hud {
             position: fixed; top: 10px; left: 10px;
             width: 260px; background: rgba(0, 0, 0, 0.85);
@@ -57,69 +56,67 @@
                 this.scaleFactor = 1;
                 this.initialScale = this.el.object3D.scale.clone();
 
-                // Bindings
                 this.handleTouchStart = this.handleTouchStart.bind(this);
                 this.handleTouchMove = this.handleTouchMove.bind(this);
 
-                // Tracking Events abfangen
-                this.el.addEventListener('targetFound', () => { 
-                    this.isVisible = true; 
-                    if(this.hudTarget) this.hudTarget.innerText = "JA (Aktiv)";
-                });
-                this.el.addEventListener('targetLost', () => { 
-                    this.isVisible = false; 
-                    if(this.hudTarget) this.hudTarget.innerText = "NEIN (Inaktiv)";
-                });
+                // Sucht das übergeordnete MindAR-Target, um den Sichtbarkeitsstatus abzufragen
+                const targetEntity = this.el.closest('[mindar-image-target]');
+                if (targetEntity) {
+                    targetEntity.addEventListener('targetFound', () => { 
+                        this.isVisible = true; 
+                        if(this.hudTarget) this.hudTarget.innerText = "JA (Aktiv)";
+                    });
+                    targetEntity.addEventListener('targetLost', () => { 
+                        this.isVisible = false; 
+                        if(this.hudTarget) this.hudTarget.innerText = "NEIN (Inaktiv)";
+                    });
+                }
 
-                // Listeners auf das Window legen
                 window.addEventListener('touchstart', this.handleTouchStart, {passive: false});
                 window.addEventListener('touchmove', this.handleTouchMove, {passive: false});
             },
             
             handleTouchStart: function (event) {
                 if (this.hudTouches) this.hudTouches.innerText = event.touches.length;
-                if (!this.isVisible) {
-                    if (this.hudLog) this.hudLog.innerText = "Touch ignoriert (Kein Target im Fokus)";
-                    return;
-                }
+                if (!this.isVisible) return;
 
                 if (event.touches.length === 1) {
                     this.previousTouchX = event.touches[0].clientX;
                     this.previousTouchY = event.touches[0].clientY;
-                    if (this.hudLog) this.hudLog.innerText = "Start: 1 Finger (Rotation registriert)";
                 } else if (event.touches.length === 2) {
                     this.initialSpread = this.getDistance(event.touches[0], event.touches[1]);
                     this.baseScale = this.scaleFactor;
-                    if (this.hudLog) this.hudLog.innerText = "Start: 2 Finger (Pinch registriert)";
                 }
             },
             
             handleTouchMove: function (event) {
                 if (!this.isVisible) return;
-                event.preventDefault(); // Verhindert das Scrollen der Website beim Wischen
+                event.preventDefault(); 
 
                 if (event.touches.length === 1) {
+                    // Dreht nun isoliert den internen Container
                     const deltaX = event.touches[0].clientX - this.previousTouchX;
                     const deltaY = event.touches[0].clientY - this.previousTouchY;
                     
-                    this.el.object3D.rotation.y += deltaX * 0.005;
-                    this.el.object3D.rotation.x += deltaY * 0.005;
+                    this.el.object3D.rotation.y += deltaX * 0.008;
+                    this.el.object3D.rotation.x += deltaY * 0.008;
                     
                     this.previousTouchX = event.touches[0].clientX;
                     this.previousTouchY = event.touches[0].clientY;
-                    if (this.hudLog) this.hudLog.innerText = `Rotiere... dX: ${deltaX.toFixed(1)}, dY: ${deltaY.toFixed(1)}`;
+                    if (this.hudLog) this.hudLog.innerText = `Rotiere... X: ${this.el.object3D.rotation.x.toFixed(2)}, Y: ${this.el.object3D.rotation.y.toFixed(2)}`;
                 } else if (event.touches.length === 2) {
+                    // Skaliert isoliert den internen Container
                     const currentSpread = this.getDistance(event.touches[0], event.touches[1]);
                     if (this.initialSpread > 0) {
                         const ratio = currentSpread / this.initialSpread;
-                        this.scaleFactor = Math.max(0.1, Math.min(5, this.baseScale * ratio));
+                        this.scaleFactor = Math.max(0.2, Math.min(4, this.baseScale * ratio));
                         
                         this.el.object3D.scale.set(
                             this.initialScale.x * this.scaleFactor,
                             this.initialScale.y * this.scaleFactor,
                             this.initialScale.z * this.scaleFactor
                         );
-                        if (this.hudLog) this.hudLog.innerText = `Skaliere... Faktor: ${this.scaleFactor.toFixed(2)}`;
+                        if (this.hudLog) this.hudLog.innerText = `Skaliere... Multiplikator: ${this.scaleFactor.toFixed(2)}`;
                     }
                 }
             },
@@ -155,8 +152,13 @@
         
         <a-camera position="0 0 0" look-controls="enabled: false" mindar-image-camera></a-camera>
 
-        <a-entity mindar-image-target="targetIndex: 0" gesture-handler>
-            <a-box position="0 0 0" scale="0.3 0.3 0.3" material="color: red; opacity: 0.9;"></a-box>
+        <a-entity mindar-image-target="targetIndex: 0">
+            
+            <a-entity gesture-handler>
+                
+                <a-box position="0 0 0" scale="1.0 1.0 1.0" material="color: red; opacity: 0.9;"></a-box>
+                
+                </a-entity>
         </a-entity>
     </a-scene>
 
