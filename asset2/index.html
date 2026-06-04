@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Video Portal with Controls</title>
+    <title>AR Video Portal</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
@@ -14,9 +14,10 @@
             -webkit-font-smoothing: antialiased;
         }
 
+        /* UI LAYER (Erhöhter Z-Index gegen MindAR-Injektionen) */
         #ar-ui-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 9999; pointer-events: none;
+            z-index: 888888 !important; pointer-events: none;
             display: flex; flex-direction: column; justify-content: space-between;
             padding: 16px; box-sizing: border-box;
         }
@@ -44,32 +45,32 @@
         .status-badge.tracked { border-color: rgba(0, 255, 150, 0.3); }
         .status-badge.tracked .status-dot { background-color: #00ff96; box-shadow: 0 0 10px #00ff96; }
 
-        /* Bottom Bar: Info Card & Controls */
+        /* Bottom Bar: Ultraschlanke Video Card ohne Raster */
         .ui-bottom-bar { display: flex; justify-content: center; width: 100%; margin-bottom: env(safe-area-inset-bottom, 0px); }
 
         .video-card {
             background: rgba(15, 15, 20, 0.75);
             backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px; padding: 16px; width: 100%; max-width: 360px;
+            border-radius: 16px; padding: 14px; width: 100%; max-width: 340px;
             color: #fff; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
             transform: translateY(20px); opacity: 0;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
         }
 
         .video-card.visible { transform: translateY(0); opacity: 1; }
-        .video-title { font-size: 18px; font-weight: 600; margin: 0 0 4px 0; }
-        .video-subtitle { font-size: 12px; color: #8a8a93; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+        .video-title { font-size: 16px; font-weight: 600; margin: 0 0 2px 0; }
+        .video-subtitle { font-size: 11px; color: #8a8a93; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
 
-        /* KORREKTUR 2: Interaktive Video-Controls Zeile */
+        /* Video-Controls Zeile */
         .video-controls {
-            display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
-            pointer-events: auto; /* Erlaubt Klicks und Drag-Gesten auf diesen Elementen */
+            display: flex; align-items: center; gap: 12px;
+            pointer-events: auto;
         }
 
         .play-btn {
             background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25);
-            color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 12px;
+            color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 11px;
             display: flex; align-items: center; justify-content: center; cursor: pointer;
             transition: background 0.2s; -webkit-tap-highlight-color: transparent;
         }
@@ -81,31 +82,25 @@
             outline: none; cursor: pointer; accent-color: #00ff96;
         }
         .timeline-slider::-webkit-slider-thumb {
-            -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+            -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
             border-radius: 50%; background: #00ff96; cursor: pointer; box-shadow: 0 0 6px #00ff96;
         }
 
-        /* Daten-Raster */
-        .info-grid {
-            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 12px;
-        }
-        .info-item { display: flex; flex-direction: column; }
-        .info-label { font-size: 11px; color: #fff; text-transform: uppercase; margin-bottom: 2px; opacity: 0.5; }
-        .info-value { font-size: 14px; font-weight: 500; color: #f2f2f7; }
-
-        /* Lade-Screen */
+        /* LADE-SCREEN (Absolut dominant erzwungen über !important) */
         #loading {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #09090b; color: #fff; z-index: 10000;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #09090b !important; color: #fff; 
+            z-index: 999999 !important; 
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
+        
         #start-btn {
             padding: 12px 28px; font-size: 15px; font-weight: 600; background: #fff; color: #000; 
             border: none; border-radius: 24px; cursor: pointer; margin-top: 20px;
             box-shadow: 0 4px 20px rgba(255,255,255,0.2); display: none;
         }
 
+        /* Native Video/Canvas Schranken für den Hintergrund */
         video { width: 100vw !important; height: 100vh !important; object-fit: cover !important; position: absolute; top: 0; left: 0; z-index: 1 !important; }
         .a-canvas { width: 100vw !important; height: 100vh !important; position: absolute; top: 0; left: 0; z-index: 2 !important; }
     </style>
@@ -122,7 +117,7 @@
                 
                 this.isVisible = false;
 
-                // KORREKTUR 1: Native HTML5 Video Events überwachen für intelligenten Lade-Status
+                // Erkennt Puffer-Zustände des Videos im 3D Raum
                 this.video.addEventListener('waiting', () => {
                     if (this.isVisible && this.loadingText) this.loadingText.setAttribute('visible', true);
                 });
@@ -140,7 +135,6 @@
                             if(this.uiPlayBtn) this.uiPlayBtn.innerText = "⏸";
                         }
                         
-                        // UI einblenden
                         if(this.statusBadge) this.statusBadge.classList.add('tracked');
                         if(this.statusText) this.statusText.innerText = "Video aktiv";
                         if(this.videoCard) this.videoCard.classList.add('visible');
@@ -150,10 +144,8 @@
                         this.isVisible = false; 
                         if (this.video) this.video.pause();
                         
-                        // Wenn Tracker verloren geht, auch den Text im 3D-Raum vorsorglich verstecken
                         if (this.loadingText) this.loadingText.setAttribute('visible', false);
                         
-                        // UI ausblenden
                         if(this.statusBadge) this.statusBadge.classList.remove('tracked');
                         if(this.statusText) this.statusText.innerText = "Suche Marker...";
                         if(this.videoCard) this.videoCard.classList.remove('visible');
@@ -182,24 +174,13 @@
                     <button id="ui-play-btn" class="play-btn">▶</button>
                     <input type="range" id="ui-timeline" class="timeline-slider" min="0" max="100" value="0">
                 </div>
-
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Inhalt</span>
-                        <span class="info-value">CVD Kinetik</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Format</span>
-                        <span class="info-value">1080p MP4</span>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 
     <div id="loading">
-        <h2 style="font-weight: 400; letter-spacing: 1px;">Nanochemistry AR Video</h2>
-        <p id="init-text" style="color: #8a8a93; font-size: 14px;">Initialisiere Video-Infrastruktur...</p>
+        <h2 style="font-weight: 400; letter-spacing: 1px; margin-bottom: 5px;">Nanochemistry AR Video</h2>
+        <p id="init-text" style="color: #8a8a93; font-size: 14px; margin: 0;">Initialisiere Video-Infrastruktur...</p>
         <button id="start-btn">AR Video Starten</button>
     </div>
 
@@ -226,10 +207,10 @@
         <a-entity mindar-image-target="targetIndex: 0">
             <a-entity video-handler>
                 
-                <a-video src="#ar-video" position="0 0 0.12" width="3.2" height="1.8" rotation="0 0 0"></a-video>
+                <a-video src="#ar-video" position="0 0 0.3" width="3.2" height="1.8" rotation="0 0 0"></a-video>
                 
                 <a-text id="ar-loading-text" 
-                        value="Video laedt..." 
+                        value="Video loading..." 
                         align="center" 
                         position="0 0 0.14" 
                         scale="0.5 0.5 0.5" 
@@ -248,7 +229,6 @@
         const initText = document.getElementById('init-text');
         const startBtn = document.getElementById('start-btn');
         
-        // Globale Elemente für Steuerung
         const video = document.getElementById('ar-video');
         const uiPlayBtn = document.getElementById('ui-play-btn');
         const uiTimeline = document.getElementById('ui-timeline');
@@ -268,11 +248,7 @@
             }
         });
 
-        // =========================================================
-        // LOGIK FÜR INTERAKTIVE OVERLAY CONTROLS
-        // =========================================================
-
-        // 1. Play/Pause Button umschalten
+        // Controls-Logik
         uiPlayBtn.addEventListener('click', () => {
             if (video.paused) {
                 video.play();
@@ -283,7 +259,6 @@
             }
         });
 
-        // 2. Timeline Slider updaten während das Video läuft
         video.addEventListener('timeupdate', () => {
             if (!isNaN(video.duration)) {
                 const percentage = (video.currentTime / video.duration) * 100;
@@ -291,7 +266,6 @@
             }
         });
 
-        // 3. Video spulen (Scrubbing) wenn der Slider gezogen wird
         uiTimeline.addEventListener('input', () => {
             if (!isNaN(video.duration)) {
                 video.currentTime = (uiTimeline.value / 100) * video.duration;
