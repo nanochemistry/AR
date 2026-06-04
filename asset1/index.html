@@ -46,20 +46,36 @@
     const loadingEl = document.getElementById('loading');
     const startBtn = document.getElementById('start-btn');
 
-    // MindAR wird erst gestartet, wenn der Nutzer auf den Button klickt
     startBtn.addEventListener('click', () => {
         startBtn.innerText = "Initialisiere Kamera...";
-        
-        // Signalisiert A-Frame/MindAR, dass es losgehen kann
+        startBtn.disabled = true; // Verhindert doppelte Klicks
+
+        // Funktion, die den AR-Start ausführt, sobald das System bereit ist
+        const startAR = () => {
+            const mindarSystem = sceneEl.components['mindar-image'] && sceneEl.components['mindar-image'].system;
+            if (mindarSystem) {
+                mindarSystem.start(); // Startet die Kamera explizit
+            }
+        };
+
+        // Wenn die Szene und alle Komponenten bereits geladen sind
+        if (sceneEl.hasLoaded) {
+            startAR();
+        } else {
+            // Falls A-Frame noch am Laden ist, warten wir auf das 'loaded' Event
+            sceneEl.addEventListener('loaded', startAR);
+        }
+
+        // Sobald MindAR signalisiert, dass das Tracking läuft, blenden wir den Screen aus
         sceneEl.addEventListener("arReady", () => {
             loadingEl.style.display = 'none';
         });
 
-        // Falls die Szene im Hintergrund schon bereit war
-        if (sceneEl.hasLoaded) {
-            // Ein kleiner Schubs für den Fall, dass die Kamera blockiert war
-            sceneEl.components['mindar-image'].system.start(); 
-        }
+        // Fehler-Handling falls die Kamera blockiert ist
+        sceneEl.addEventListener("arError", () => {
+            startBtn.innerText = "Kamera-Fehler!";
+            alert("Kamera konnte nicht gestartet werden. Bitte HTTPS und Berechtigungen prüfen.");
+        });
     });
 </script>
 </body>
